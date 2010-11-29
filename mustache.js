@@ -40,6 +40,12 @@
       else
         return compiled.render(context);
     },
+    compile:function(template,partials) {
+      var compiled = new this.Renderer().compile(template, partials);
+      return function(context) {
+        return compiled.render.call(compiled,context);
+      }
+    },
     template:function(name,template,options) {
       var tmpl = this.Renderer.prototype.partials[name] = new this.Renderer(options,name);
       return tmpl.compile(template,false); //separate step for recursive partials
@@ -142,6 +148,7 @@
     },
 
     render: function(state, top_context) {
+      state = state || {};
       this.state = {ctx:[],contexts:[state]};
       this.context = top_context || state;
       return this.map(this.compiled, this.render_func, this).join('');
@@ -152,6 +159,7 @@
     },
 
     compile: function(template, partials, opts) {
+      template = template || '';
       var compiled = [];
       //1. TODO find pragmas and replace them
       var otag = (opts && opts.otag ? opts.otag : this.otag);
