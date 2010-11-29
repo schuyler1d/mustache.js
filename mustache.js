@@ -97,6 +97,9 @@
     pragmas_implemented: {
       ///return overrides run during template parsing in this.piece()
       'IMPLICIT-ITERATOR':function() {
+        if (!this.pragmas['IMPLICIT-ITERATOR'].iterator) {
+          this.pragmas['IMPLICIT-ITERATOR'].iterator = '.';
+        }
         return function(method,name,pragma_opts) {
           if (name !== pragma_opts.iterator) return false;
           switch(method) {
