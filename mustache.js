@@ -166,10 +166,8 @@
       var ctag = (opts && opts.ctag ? opts.ctag : this.ctag);
       if (partials) {
         for (a in partials) {
-          if (! (a in Renderer.prototype.partials)) {
-            var p = Renderer.prototype.partials[a] = new Renderer(false,a);
-            p.compile(partials[a],false); //separate step for recursive partials
-          }
+          var p = Renderer.prototype.partials[a] = new Renderer(false,a);
+          p.compile(partials[a],false); //separate step for recursive partials
         }
       }
       
