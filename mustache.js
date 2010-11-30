@@ -191,11 +191,11 @@
           }
         }
       }
-
+      /*
       var last = compiled.length -1;
       if (typeof compiled[last] === 'string') {
         compiled[last] = compiled[last].replace(/\n+$/,'');
-      }
+      }*/
       this.template = template;
       this.compiled = compiled;
       return this;
@@ -212,7 +212,7 @@
        an edge-case consequence is that you cannot change delimiters inside blocks
      */
     split_delimiters: function(template, otag, ctag) {
-      var regex = new RegExp("\\n?" + otag+'=([^=\\s]+)\\s+([^=\\s]+)='+ctag,'g');
+      var regex = new RegExp(otag+'=([^=\\s]+)\\s+([^=\\s]+)='+ctag,'g');
       var pragma_regex = new RegExp(otag + "%\\s*([^\\/#\\^]+?)\\s*%?" + ctag, "g");
       var found = regex.exec(template);
       var rv_list = [];
@@ -246,9 +246,8 @@
     */
     split_sections: function(template, otag, ctag) {
       // CSW - Added "+?" so it finds the tighest bound, not the widest
-      var regex = new RegExp("(^|\\n*)" + otag + "(\\^|\\#)\\s*(.*[^\\s])\\s*" + ctag +
-                             "(\\n*)([\\s\\S]+?)" + otag + "\\/\\s*\\3\\s*" + ctag +
-                             "(\\s*)", "mg");
+      var regex = new RegExp(otag + "(\\^|\\#)\\s*(.*[^\\s])\\s*" + ctag +
+                             "([\\s\\S]+?)" + otag + "\\/\\s*\\2\\s*" + ctag, "mg");
       var found, prevInd=0, rv_list = [];
       while (found = regex.exec(template)) {
         rv_list.push({
@@ -256,18 +255,16 @@
           'otag':otag,'ctag':ctag
         })
         ///stupid white space rules (still don't work)
-        var temp = (((found[1] && found[4])? '\n' : '') 
-                    + found[5]
-                    +((found[6] && found[4])? '\n' : '') );
+        var temp = found[3];
 
         var sub_section = {
-          'block':found[2],       //'#'=test/list '^'=inverted
-          'name':found[3],        //block name value
+          'block':found[1],       //'#'=test/list '^'=inverted
+          'name':found[2],        //block name value
           'uncompiled': temp, //inner block content
           'compiled':new Renderer({pragmas:this.pragmas,sub:true},this.name).compile(temp,null,{'otag':otag,'ctag':ctag}),
           'otag':otag,'ctag':ctag
         }
-        sub_section['content'] = this.piece(found[2], found[3], sub_section),
+        sub_section['content'] = this.piece(found[1], found[2], sub_section),
         rv_list.push(sub_section);
 
         prevInd = regex.lastIndex;
@@ -312,8 +309,8 @@
             throw Error("Unset partial reference '"+found[2]+"' not found in template:"+ this.name);
             //sub_section['compiled'] = this; //issue: might be child of partial like in a block
           } else {
-            throw Error("Partial reference '"+found[2]+"' not found in template"
-                        + ((this.name) ? ': '+this.name : ''));
+            throw Error("Unknown partial '"+found[2]+"'"
+                        + ((this.name) ? ' not found in template: '+this.name : ''));
           }
           //sub_section['compiled'].compiled.push('\n');
           //break;
