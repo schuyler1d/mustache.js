@@ -175,10 +175,12 @@
       }
       
       //2. split on new delimiters
-      var sections = this.split_delimiters(template, otag, ctag)
-      .map(function(s_delim) {
-        return this.split_sections(s_delim.template, s_delim.otag, s_delim.ctag);
-      },this);
+      var sections = this.map(
+        this.split_delimiters(template, otag, ctag),
+        function(s_delim) {
+          return this.split_sections(s_delim.template, s_delim.otag, s_delim.ctag);
+        },
+        this);
       
       for (var i=0;i<sections.length;i++) {
         for (var j=0;j<sections[i].length;j++) {
@@ -432,7 +434,7 @@
     },
     
     get_object: function(name,ctx) {
-      return ctx[name];
+      return (ctx ? ctx[name] : undefined);
     },
     display: function(value,context) {
       if(typeof value === "function") {
