@@ -81,7 +81,7 @@
   function is_kinda_truthy(bool) {
     return bool === false || bool === 0 || bool;
   }
-    
+
   Renderer.prototype = {
     otag: "{{",
     ctag: "}}",
@@ -282,7 +282,7 @@
        Split regular strings with {{foo}} and friends into array of joinable parts
      */
     split_tags: function(template, otag, ctag, rv_list) {
-      var regex = new RegExp(otag + "(=|!|>|\\{|%)?\\s*([^\\/#\\^]+?)\\s*(\\1|\\})?" + ctag, "g");
+      var regex = new RegExp(otag + "(=|!|>|&|\\{|%)?\\s*([^\\/#\\^]+?)\\s*(\\1|\\})?" + ctag, "g");
       var found, prevInd=0;
       while (found = regex.exec(template)) {
         var front = regex.lastIndex-found[0].length;
@@ -312,7 +312,8 @@
             throw Error("Unset partial reference '"+found[2]+"' not found in template:"+ this.name);
             //sub_section['compiled'] = this; //issue: might be child of partial like in a block
           } else {
-            throw Error("Partial reference '"+found[2]+"' not found in template:"+ this.name);
+            throw Error("Partial reference '"+found[2]+"' not found in template"
+                        + ((this.name) ? ': '+this.name : ''));
           }
           //sub_section['compiled'].compiled.push('\n');
           //break;
@@ -414,6 +415,8 @@
         return this.pieces.block;
       case ">"://partial
         return this.pieces.partial;
+      case "&"://function extension
+        return this.pieces.unescaped;
       case "{": //unescaped content
         return this.pieces.unescaped;
       default:
@@ -458,9 +461,12 @@
     /*
       Does away with nasty characters
     */
+    ///Which regex do we want?  double-escape or not?
+    escape_reg: new RegExp("&|[\\\"\\'<>\\\\]","g"),
+    //escape_reg: new RegExp("&(?!\\w+;)|[\\\"\\'<>\\\\]","g"),
     escape: function(s) {
       s = String(s === null ? "" : s);
-      return s.replace(/&(?!\w+;)|[\"\'<>\\]/g, function(s) {
+      return s.replace(this.escape_reg, function(s) {
         switch(s) {
         case "&": return "&amp;";
         case "\\": return "\\\\";

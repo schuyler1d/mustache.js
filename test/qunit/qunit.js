@@ -283,7 +283,8 @@ var QUnit = {
 	 * @param String message (optional)
 	 */
 	equal: function(actual, expected, message) {
-        push(expected.replace(/\s/g,'') == actual.replace(/\s/g,''), actual, expected, message);
+        //push(expected == actual, actual, expected, message);
+          push(expected.replace(/\s/g,'') == actual.replace(/\s/g,''), actual, expected, message);
 	},
 
 	notEqual: function(actual, expected, message) {

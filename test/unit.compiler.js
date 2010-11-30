@@ -70,8 +70,7 @@ test("Parser", function() {
 			{ tag1: 'Hello' },
 			{}
 		);
-
-		ok(false);
+	  ok(false,'Should fail on {{=tag1}} parse');
 	} catch (e) {
 		equals(e.message, 'Unexpected end of document.');
 	}
@@ -372,13 +371,13 @@ test("'>' (Partials)", function() {
 	
 	try {
 		Mustache.to_html(
-			'{{>partial}}',
+			'{{>nonexistant_partial}}',
 			{},
 			{partal: ''}
 		);
-		ok(false);
+	        ok(false, "Should return error: Unknown partial 'nonexistant_partial'");
 	} catch(e) {
-		equals(e.message, "Unknown partial 'partial'");
+		equals(e.message, "Unknown partial 'nonexistant_partial'");
 	}
 });
 
