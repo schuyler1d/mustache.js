@@ -303,6 +303,9 @@
           sub_section['content'] = this.piece('{',found[2],sub_section);
           rv_list.push(sub_section);
           break;
+        case "=": // broken delimiter setting
+          throw Error("Incorrectly formed delimiter changing tag: "+found[0]);
+          break;
         case ">": // partials
           if (found[2] in this.partials) {
 	    sub_section['compiled'] = this.partials[found[2]];
