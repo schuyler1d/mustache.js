@@ -361,7 +361,7 @@
       },
       conditional:function(ctx, state) {
         var value = this.find(ctx.base_name, state.contexts[0]);
-        if (value) {
+        if (value && value.length !== 0) {
           return ctx.compiled.render(state.contexts[0], this.context);
         }
       },

@@ -37,6 +37,14 @@ A quick example how to use mustache.js:
 `template` is a simple string with mustache tags and `view` is a JavaScript
 object containing the data and any code to render the template.
 
+To precompile the template for repeated use:
+ 
+    Mustache.template("Spent Template", template);
+    
+    var html = Mustache.tmpl("Spent Template", view);
+
+This saves the template in the key "Spent Template" where you can render the same
+template with different `view`s many times without re-compiling the template.
 
 ## Template Tag Types
 
@@ -235,7 +243,7 @@ By adding a pragma, we can provide the right context for a given template:
 
     <div class="tweet-button">{{_i}}Tweet{{/i}}</div>
 
-This will lookup every translation in that template with the mode, e.g. `_('Tweet', {_mode: "tweet_button"})`, which your gettext implementation can handle as appropriate.
+This will lookup every translation in that template with the mode, e.g. `_('Tweet', {mode: "tweet_button"})`, which your gettext implementation can handle as appropriate.
 
 ## Escaping
 
@@ -267,6 +275,14 @@ and they accept options:
 
     {{%PRAGMANAME option=value}}
 
+You can also activate the pragma for all templates with:
+
+    Mustache.set_pragma_default(<PRAGMANAME>, <options>, <pragma code>)
+
+So, to activate implicit iterator, without it appearing in the templates, you would run
+  
+    Mustache.set_pragma_default('IMPLICIT-ITERATOR',{iterator:'bob'})
+
 
 ### IMPLICIT-ITERATOR
 
@@ -296,6 +312,35 @@ own iteration marker:
 ### TRANSLATION-HINT
 
 See the "Internationalization" section above for info on this pragma.
+
+### ?-CONDITIONAL
+
+This allows one to make an explicitly conditional block, which will not iterate if it is
+an array, but simply display the block.  The syntax is to suffix the name with a '?' so:
+
+    {{%?-CONDITIONAL}}
+    {{#foo?}}
+      {{bob}}
+    {{/foo?}}
+
+Will print the block only if 'foo' evaluates to true, and if foo is an array, only print once
+if foo is not empty.
+
+### DOT-SEPARATORS
+
+For quick reference to a deep value in your context, use dots:
+
+    {{%DOT-SEPARATORS}}
+    {{foo.bar.1.hello}}
+
+will render "baz" for the view `{foo:{bar:[0,{hello:"baz"}]}}`
+
+### Making your own Pragmas
+
+You can set to default and activate your own pragma by passing a function as the third argument to
+Mustache.set_default_pragma().  This function is run with the Renderer as this.  If it returns
+a function it will be run when a block or tag is being compiled and allow.  See `pragmas_implemented` in `mustache.js` for examples on how to use this.
+
 
 ## F.A.Q.
 
