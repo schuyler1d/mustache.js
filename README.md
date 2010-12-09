@@ -199,11 +199,48 @@ will tell mustache.js to look for a object in the context's property
 `winnings`. It will then use that object as the context for the template found
 in `partials` for `winnings`.
 
+## Internationalization
+
+mustache.js supports i18n using the `{{_i}}{{/i}}` tags.  When mustache.js encounters
+an internationalized section, it will call out to the standard global gettext function `_()` with the tag contents for a
+translation _before_ any rendering is done.  For example:
+
+    var template = "{{_i}}{{name}} is using mustache.js!{{/i}}"
+
+    var view = {
+      name: "Matt"
+    };
+
+    var translationTable = {
+      // Welsh, according to Google Translate
+      "{{name}} is using mustache.js!": "Mae {{name}} yn defnyddio mustache.js!"
+    };
+
+    function _(text) {
+      return translationTable[text] || text;
+    }
+
+    alert(Mustache.to_html(template, view));
+    // alerts "Mae Matt yn defnyddio mustache.js!"
+
+### The TRANSLATION-HINT Pragma
+
+Some single words in English have different translations based on usage context.  Mustache.js supports this with the TRANSLATION-HINT pragma.  For example, the word "Tweet" can be used as a noun, or a verb.  The following template is ambiguous:
+
+    <div class="tweet-button">{{_i}}Tweet{{/i}}</div>
+
+By adding a pragma, we can provide the right context for a given template:
+
+    {{%TRANSLATION-HINT mode=tweet_button}}
+
+    <div class="tweet-button">{{_i}}Tweet{{/i}}</div>
+
+This will lookup every translation in that template with the mode, e.g. `_('Tweet', {_mode: "tweet_button"})`, which your gettext implementation can handle as appropriate.
 
 ## Escaping
 
 mustache.js does escape all values when using the standard double mustache
-syntax. Characters which will be escaped: `& \ " < >`. To disable escaping,
+syntax. Characters which will be escaped: `& \ " ' < >`. To disable escaping,
 simply use triple mustaches like `{{{unescaped_variable}}}`.
 
 Example: Using `{{variable}}` inside a template for `5 > 2` will result in `5 &gt; 2`, where as the usage of `{{{variable}}}` will result in `5 > 2`.
@@ -256,6 +293,10 @@ own iteration marker:
       {{bob}}
     {{/foo}}
 
+### TRANSLATION-HINT
+
+See the "Internationalization" section above for info on this pragma.
+
 ## F.A.Q.
 
 ### Why doesn’t Mustache allow dot notation like `{{variable.member}}`?
@@ -303,8 +344,32 @@ directory.
 Run `rake commonjs` to get a CommonJS compatible plugin file in the
 `mustache-commonjs/` directory which you can also use with [Node.js][].
 
+## Testing
+
+To run the mustache.js test suite, run `rake spec`.  All specs will be run first with JavaScriptCore (using `jsc`)
+and again with Rhino, using `java org.mozilla.javascript.tools.shell.Main`.  To install Rhino on OSX, follow [these instructions](Rhino Install).
+
+### Adding Tests
+
+Tests are located in the `examples/` directory.  Adding a new test requires three files.  Here's an example to add a test named "foo":
+
+`examples/foo.html` (the template):
+
+    foo {{bar}}
+
+`examples/foo.js` (the view context):
+
+    var foo = {
+      bar: "baz"
+    };
+
+`examples/foo.txt` (the expected output):
+
+    foo baz
+
 [jQuery]: http://jquery.com/
 [Dojo]: http://www.dojotoolkit.org/
 [Yui]: http://developer.yahoo.com/yui/
 [CommonJS]: http://www.commonjs.org/
 [Node.js]: http://nodejs.org/
+[Rhino Install]: http://michaux.ca/articles/installing-rhino-on-os-x
