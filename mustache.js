@@ -92,7 +92,8 @@
     recurse: 0,
     partials: {}, //set only on the prototype--so this is a Singleton
     default_pragmas: {
-      'IMPLICIT-ITERATOR':{iterator:'.'}
+      'IMPLICIT-ITERATOR':{iterator:'.'},
+      'i18n':{}
     },
     pragmas_implemented: {
       ///return overrides run during template parsing in this.piece()
@@ -128,6 +129,24 @@
           }
           return obj;
         }
+      },
+      'i18n':function() {
+        this.section_prefixes.push('_');
+        return function(method,name,pragma_opts,obj) {
+          if (method === '_') {
+            if (name === 'i' && typeof _==='function') {
+              obj.i18n = _(obj.uncompiled, this.pragmas['TRANSLATION-HINT'] || undefined);
+              obj.compiled = new Renderer({pragmas:this.pragmas,sub:true},
+                                          this.name).compile(obj.i18n,null,{'otag':obj.otag,'ctag':obj.ctag})
+              return this.pieces.i18n;
+            } else {
+              throw Error("When i18n is turned on, no variables starting with '_' are allowed.");
+            }
+          }
+        }
+      },
+      'TRANSLATION-HINT':function() {
+        /*don't need to do anything, as this just holds info for i18n pragma  */
       }
     },
     pragma_initialize: function(name) {
@@ -246,11 +265,13 @@
     /*
       Divides inverted (^) and normal (#) sections
     */
+    section_prefixes: ["^","#"],
     split_sections: function(template, otag, ctag) {
       // CSW - Added "+?" so it finds the tighest bound, not the widest
-      var regex = new RegExp(otag + "(\\^|\\#)\\s*(.*[^\\s])\\s*" + ctag +
-                             "([\\s\\S]+?)" + otag + "\\/\\s*\\2\\s*" + ctag, "mg");
+      var regex = new RegExp(otag + "("+this.map(this.section_prefixes,this.escape_regex).join("|")+")\\s*(.*[^\\s])\\s*" + ctag +
+                             "([\\s\\S]*?)" + otag + "\\/\\s*\\2\\s*" + ctag, "mg");
       var found, prevInd=0, rv_list = [];
+
       while (found = regex.exec(template)) {
         rv_list.push({
           'template':template.slice(prevInd,regex.lastIndex-found[0].length),
@@ -400,6 +421,9 @@
       },
       dot_unescaped:function(ctx,state) {
         return this.display(state.contexts[0],state.contexts[0]);
+      },
+      i18n:function(ctx,state) {
+        return ctx.compiled.render(state.contexts[0], this.context);
       }
     },
     piece: function(method, name, obj) {
@@ -418,9 +442,11 @@
       case ">"://partial
         return this.pieces.partial;
       case "&"://function extension
-        return this.pieces.unescaped;
+        return this.pieces.unescaped; //could optimize better?
       case "{": //unescaped content
         return this.pieces.unescaped;
+      case "_": //TODO: if i18n is ON, but the block is not _i but _foo, what do we do?
+        return this.pieces.i18n;        
       default:
         return this.pieces.escaped;
       }
@@ -428,7 +454,7 @@
     escape_regex: function(text) {
       var specials = [
         '/', '.', '*', '+', '?', '|',
-        '(', ')', '[', ']', '{', '}', '\\'
+        '(', ')', '[', ']', '{', '}', '\\','^'
       ];
       var regex = new RegExp(
         '(\\' + specials.join('|\\') + ')', 'g'
