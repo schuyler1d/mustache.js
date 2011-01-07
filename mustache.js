@@ -138,7 +138,7 @@
               obj.i18n = _(obj.uncompiled, this.pragmas['TRANSLATION-HINT'] || undefined);
               obj.compiled = new Renderer({pragmas:this.pragmas,sub:true},
                                           this.name).compile(obj.i18n,null,{'otag':obj.otag,'ctag':obj.ctag})
-              return this.pieces.i18n;
+              return this.pieces.just_render;
             } else {
               throw Error("When i18n is turned on, no variables starting with '_' are allowed.");
             }
@@ -147,6 +147,15 @@
       },
       'TRANSLATION-HINT':function() {
         /*don't need to do anything, as this just holds info for i18n pragma  */
+      },
+      'EMBEDDED-PARTIALS':function() {
+        return function(method,name,pragma_opts,obj) {
+          if (method === '#' && /^>>/.test(name) ) {
+            var template_name = name.substring(2);
+            this.prototype.partials[template_name] = obj.compiled;
+            return this.pieces.just_render;
+          }
+        }
       }
     },
     pragma_initialize: function(name) {
@@ -393,6 +402,7 @@
 	  switch (typeof value) {
 	  case 'function':
             return value.call(state.contexts[0], ctx.uncompiled, function render(text) {
+              ///this function is forced to use (SLOW) closures even for default rendering text
               if (text === ctx.uncompiled) {
                 return ctx.compiled.render(state.contexts[0], state.contexts[state.contexts.length-1]);
               } else {
@@ -422,7 +432,7 @@
       dot_unescaped:function(ctx,state) {
         return this.display(state.contexts[0],state.contexts[0]);
       },
-      i18n:function(ctx,state) {
+      just_render:function(ctx,state) {
         return ctx.compiled.render(state.contexts[0], this.context);
       }
     },
@@ -446,7 +456,7 @@
       case "{": //unescaped content
         return this.pieces.unescaped;
       case "_": //TODO: if i18n is ON, but the block is not _i but _foo, what do we do?
-        return this.pieces.i18n;        
+        return this.pieces.just_render;        
       default:
         return this.pieces.escaped;
       }
@@ -494,6 +504,8 @@
     //escape_reg: new RegExp("&(?!\\w+;)|[\\\"\\'<>\\\\]","g"),
     escape: function(s) {
       s = String(s === null ? "" : s);
+      ///This would be faster: Why do we need to escape '\' and '>' ?
+      //return s.replace('&',"&amp;").replace("<","&lt;").replace("'",'&#39;').replace('"','&quot;');
       return s.replace(this.escape_reg, function(s) {
         switch(s) {
         case "&": return "&amp;";
@@ -505,9 +517,6 @@
         default: return s;
         }
       });
-      ///Why do we need to escape these characters?
-      //case "\\": return "\\\\";
-      //case ">": return "&gt;";
     },
 
     is_array: function(a) {
