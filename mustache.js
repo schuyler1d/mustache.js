@@ -293,10 +293,13 @@
           'block':found[1],       //'#'=test/list '^'=inverted
           'name':found[2],        //block name value
           'uncompiled': temp, //inner block content
-          'compiled':new Renderer({pragmas:this.pragmas,sub:true},this.name).compile(temp,null,{'otag':otag,'ctag':ctag}),
           'otag':otag,'ctag':ctag
         }
         sub_section['content'] = this.piece(found[1], found[2], sub_section);
+        //maybe a pragma from this.piece() did it for us
+        if (!sub_section.compiled) { 
+          sub_section['compiled'] = this.section_compile(temp, otag, ctag);
+        }
 
         rv_list.push(sub_section);
 
@@ -307,6 +310,9 @@
         'otag':otag,'ctag':ctag
       });
       return rv_list;
+    },
+    section_compile: function(uncompiled, otag, ctag) {
+      return new Renderer({pragmas:this.pragmas,sub:true},this.name).compile(uncompiled,null,{'otag':otag,'ctag':ctag});
     },
     /* 
        Split regular strings with {{foo}} and friends into array of joinable parts
