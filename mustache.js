@@ -150,13 +150,72 @@
         /*don't need to do anything, as this just holds info for i18n pragma  */
       },
       'EMBEDDED-PARTIALS':function() {
+        this.embedded_partial_regex = /^(\s*<[^>]+?(id=[\'\"]([^\'\"]+)[\'\"]|class=[\'\"]([^\'\"]+)[\'\"])[^>]*>)(.+)(<\/\w+>\s*)$/;
         return function(method,name,pragma_opts,obj) {
           if (method === '#' && /^>>/.test(name) ) {
             var template_name = name.substring(2);
-            this.prototype.partials[template_name] = obj.compiled;
+            var html_match = obj.uncompiled.match(this.embedded_partial_regex);
+            if (html_match) {
+              ///split up the innerHTML content so it can be rendered separately
+              obj.compiled = this.section_compile(html_match[1], obj.otag, obj.ctag);
+              obj.inner_index = obj.compiled.compiled.length;
+              if (html_match[3]) {
+                obj.partial_id = html_match[3];
+              } else {
+                obj.partial_class = html_match[4].split(' ')[0]; //first class used
+              }
+              obj.compiled.compiled.push({
+                'content':this.pieces.just_render,
+                'uncompiled':html_match[5],
+                'compiled':this.section_compile(html_match[5], obj.otag, obj.ctag)
+              })
+              obj.compiled.compiled.push(html_match[6]);
+            } else {
+              obj.compiled = this.section_compile(obj.uncompiled, obj.otag, obj.ctag);
+            }
+            Renderer.prototype.partials[template_name] = obj.compiled
             return this.pieces.just_render;
           }
         }
+      },
+      'FILTERS':function() {
+        this.filter_regex = /\?([\w\=\!]+)\(([\w-,]*)\)$/g;
+        this.original_find = this.find;
+        this.find = function(ctx, context) {
+          if (typeof ctx.filter_function === 'function') {
+            return ctx.filter_function.call(this, ctx.name, ctx.context, ctx.filter_arguments)
+          } else {
+            return this.original_find(ctx,context)
+          }
+        };
+        return function(method,name,pragma_opts,obj) {
+          var filter_match = this.filter_regex.exec(name);
+          if (filter_match) {
+            obj.name = name.slice(0, this.filter_regex.lastIndex - filter_match[0].length);
+            obj.filter_function = Renderer.prototype.filters_supported[ filter_match[1] ];
+            obj.filter_arguments = filter_match[2].split(',');
+            if (typeof obj.filter_function !== 'function') {
+              throw Error("Filter '"+obj.filter_function+"' not supported.");
+            }
+          }
+        }
+      }
+    },
+    filters_supported: {
+      '==':function(name,context,args) {
+        return (this.get_object(name,context,this.context)
+                == this.get_object(args[0],context,this.context))
+      },
+      '!=':function(name,context,args) {
+        return (this.get_object(name,context,this.context)
+                == this.get_object(args[0],context,this.context))
+      },
+      'in':function(name,context,args) {
+        return (this.get_object(name,context,this.context)
+                in this.get_object(args[0],context,this.context))
+      },
+      'linebreaksbr':function(name,context,args) {
+        return String(this.get_object(name,context,this.context)||'').replace(/\n/g,'<br />');
       }
     },
     pragma_initialize: function(name) {

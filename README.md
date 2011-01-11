@@ -324,7 +324,8 @@ an array, but simply display the block.  The syntax is to suffix the name with a
     {{/foo?}}
 
 Will print the block only if 'foo' evaluates to true, and if foo is an array, only print once
-if foo is not empty.
+if foo is not empty.  This conditional test will also run faster than a normal block if
+testing the truth value is all that's needed.
 
 ### DOT-SEPARATORS
 
@@ -334,6 +335,42 @@ For quick reference to a deep value in your context, use dots:
     {{foo.bar.1.hello}}
 
 will render "baz" for the view `{foo:{bar:[0,{hello:"baz"}]}}`
+
+### EMBEDDED-PARTIALS
+
+To create partial templates within another template, you can use EMBEDDED-PARTIALS.
+
+    {{%EMBEDDED-PARTIALS}}
+    {{#>>piece}}
+      {{x}}
+    {{/>>piece}}
+    {{#y}}
+      {{>piece}}
+    {{/y}}
+
+Will render for `{x:1, y:{x:2}}`
+
+      1
+      2
+
+### FILTERS
+
+Inspired by [Django template tags/filters](http://docs.djangoproject.com/en/1.2/topics/templates/#filters), filters can process values through a function with extra arguments from the context.  There are three built-in filters so far: '==', '!=' to test equality, 'in' to test containment, and 'linebreaksbr' to replace lines with `<br />` elements.
+
+    {{%FILTERS}}
+    {{#foo?!=(bar)}}
+      <p>{{foo?linebreaksbr()}}</p>
+    {{/foo?==(bar)}}
+       
+Will render for `{foo:"xxx\nyyy",bar:"not_the_same_as_foo"}`
+
+    <p>xxx<br />yyy</p>
+
+The formating is to suffix the first variable name with a '?' and then the function name along with
+parentheses.  There can be no white-space, but multiple arguments can be separated by parentheses.
+The function must be added to `Mustache.Renderer.prototype.supported_filters` and is passed the
+name, context, and the arguments as strings.  The function is responsible for calling `this.get_object(name, context, this.context)`
+to convert any names into their contextual values.
 
 ### Making your own Pragmas
 
