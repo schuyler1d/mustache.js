@@ -79,7 +79,7 @@
      Optimization: taking this out of find() speeds it up
   */
   function is_kinda_truthy(bool) {
-    return bool === false || bool === 0 || bool;
+    return (bool || bool === false || bool === 0);
   }
 
   Renderer.prototype = {
@@ -116,7 +116,8 @@
       '?-CONDITIONAL':function() {
         return function(method,name,pragma_opts,obj) {
           if (method === '#' && /\?$/.test(name)) {
-            obj.base_name = name.substr(0,name.length-1);
+            obj.name = name.substr(0,name.length-1);
+            obj.orig_name = name;
             return this.pieces.conditional;
           }
         }
@@ -286,7 +287,6 @@
           'template':template.slice(prevInd,regex.lastIndex-found[0].length),
           'otag':otag,'ctag':ctag
         })
-        ///stupid white space rules (still don't work)
         var temp = found[3];
 
         var sub_section = {
@@ -296,7 +296,8 @@
           'compiled':new Renderer({pragmas:this.pragmas,sub:true},this.name).compile(temp,null,{'otag':otag,'ctag':ctag}),
           'otag':otag,'ctag':ctag
         }
-        sub_section['content'] = this.piece(found[1], found[2], sub_section),
+        sub_section['content'] = this.piece(found[1], found[2], sub_section);
+
         rv_list.push(sub_section);
 
         prevInd = regex.lastIndex;
@@ -362,14 +363,14 @@
     },
     pieces: {
       inverse_block:function(ctx, state) {
-        var value = this.find(ctx.name, state.contexts[0]);
+        var value = this.find(ctx, state.contexts[0]);
         if (!value || this.is_array(value) && value.length === 0) {
           return ctx.compiled.render(state.contexts[0], this.context);
         } else
           return ""
       },
       conditional:function(ctx, state) {
-        var value = this.find(ctx.base_name, state.contexts[0]);
+        var value = this.find(ctx, state.contexts[0]);
         if (value && value.length !== 0) {
           return ctx.compiled.render(state.contexts[0], this.context);
         }
@@ -385,7 +386,7 @@
 	return ctx.compiled.render((typeof c[ctx.name]==='object' ? c[ctx.name] : c), this.context);
       },
       block:function(ctx, state) {
-        var value = this.find(ctx.name, state.contexts[0]);
+        var value = this.find(ctx, state.contexts[0]);
         if (value) {
           if(Object.prototype.toString.call(value)==='[object Array]'){// Enumerable, Let's loop!
             state.ctx.unshift(ctx);
@@ -421,10 +422,10 @@
         return "";
       },
       escaped:function(ctx, state) {
-        return this.escape(this.find(ctx.name, state.contexts[0]));
+        return this.escape(this.find(ctx, state.contexts[0]));
       },
       unescaped:function(ctx, state) {
-        return this.find(ctx.name, state.contexts[0]);
+        return this.find(ctx, state.contexts[0]);
       },
       dot_escaped:function(ctx,state) {
         return this.escape(this.display(state.contexts[0],state.contexts[0]));
@@ -472,8 +473,11 @@
       return text.replace(regex,'\\$1');
     },
     
-    get_object: function(name,ctx) {
-      return (ctx ? ctx[name] : undefined);
+    get_object: function(name,ctx,ctx2) {
+      if (ctx && is_kinda_truthy(ctx[name]))
+        return ctx[name];
+      else if (is_kinda_truthy(ctx2[name]))
+        return ctx2[name];
     },
     display: function(value,context) {
       if(typeof value === "function") {
@@ -485,15 +489,9 @@
       // silently ignore unkown variables
       return "";
     },
-    find: function(name, context) {
-      var value = this.get_object(name,context);
-      if (is_kinda_truthy(value)
-          ||
-          is_kinda_truthy(value = this.get_object(name,this.context))
-         ) {
-        return this.display(value,context);
-      } 
-      return ""
+    find: function(ctx, context) {
+      var value = this.get_object(ctx.name,context,this.context);
+      return this.display(value,context);
     },
 
     /*
@@ -525,18 +523,16 @@
 
     /*
       Why, why, why? Because IE. Cry, cry cry.
+      Strangely, Chrome goes faster with the custom function
     */
-    map: function(ary, fn, thisObj) {
-      if (typeof ary.map==='function') 
-        return ary.map(fn,thisObj);
-      else {
-        var len = ary.length >>> 0,
-          rv = new Array(len);
-        for (var i=0;i<len;i++) {
-          rv[i] = fn.call(thisObj, ary[i]);
-        }
-        return rv;
+    map: Array.map || function(ary, fn, thisObj) {
+      var len = ary.length >>> 0,
+        rv = new Array(len);
+      ///must go forward for recursive partials to process correctly
+      for (var i=0;i<len;i++) {
+        rv[i] = fn.call(thisObj, ary[i]);
       }
+      return rv;
     }
 
   }/*Renderer.prototype*/
