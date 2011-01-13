@@ -179,23 +179,23 @@
         }
       },
       'FILTERS':function() {
-        this.filter_regex = /\?([\w\=\!]+)\(([\w-,]*)\)$/g;
+        this.filter_regex = /\?([\w\=\!]+)\(([\w-.,]*)\)$/;
         this.original_find = this.find;
         this.find = function(ctx, context) {
           if (typeof ctx.filter_function === 'function') {
-            return ctx.filter_function.call(this, ctx.name, ctx.context, ctx.filter_arguments)
+            return ctx.filter_function.call(this, ctx.name, context, ctx.filter_arguments)
           } else {
             return this.original_find(ctx,context)
           }
         };
         return function(method,name,pragma_opts,obj) {
-          var filter_match = this.filter_regex.exec(name);
+          var filter_match = name.match(this.filter_regex);
           if (filter_match) {
             obj.name = name.slice(0, this.filter_regex.lastIndex - filter_match[0].length);
             obj.filter_function = Renderer.prototype.filters_supported[ filter_match[1] ];
             obj.filter_arguments = filter_match[2].split(',');
             if (typeof obj.filter_function !== 'function') {
-              throw Error("Filter '"+obj.filter_function+"' not supported.");
+              throw Error("Filter '"+filter_match[1]+"' not supported.");
             }
           }
         }
