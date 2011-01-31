@@ -150,20 +150,83 @@
         /*don't need to do anything, as this just holds info for i18n pragma  */
       },
       'EMBEDDED-PARTIALS':function() {
-        this.embedded_partial_regex = /^(\s*<[^>]+?(id=[\'\"]([^\'\"]+)[\'\"]|class=[\'\"]([^\'\"]+)[\'\"])[^>]*>)(.+)(<\/\w+>\s*)$/;
+        Renderer.prototype.update_partial = function(context, opts) {
+          if (this.inner_index) {
+            opts = opts || {};
+            var parent = opts.parent || document;
+            var doms_to_update = [];
+            if (this.partial_id) {
+              doms_to_update.push((parent.ownerDocument || document).getElementById(this.partial_id.render(context)));
+            } else if (this.partial_class) {
+              var classname = this.partial_class.render(context);
+              if (parent.getElementsByClassName) {
+                doms_to_update = Array.prototype.slice.call(parent.getElementsByClassName(classname));
+              } else if (jQuery) {
+                doms_to_update = jQuery('.'+classname, parent).toArray();
+              }
+            }
+            if (doms_to_update) {
+              var pre = opts.pre || function(){};
+              var post = opts.post || function(){};
+              for (var i=0; i<doms_to_update.length; i++) {
+                pre(doms_to_update[i],context);
+                doms_to_update[i].innerHTML = this.compiled[this.inner_index].compiled.render(context);
+                post(doms_to_update[i],context);
+              }
+            }
+          }
+        };
+        Renderer.prototype.css_selector = function() {
+          if (this.partial_unique_id)
+            return '#'+this.partial_unique_id;
+          if (this.partial_unique_class)
+            return '.'+this.partial_unique_id;
+        }
+        PublicMustache.prototype.update = function(template_name, context, opts) {
+          var template = Renderer.prototype.partials[template_name];
+          if (template && template.update_partial)
+            return template.update_partial(context, opts);
+        };
+        PublicMustache.prototype.css_selector = function(template_name) {
+          var template = Renderer.prototype.partials[template_name];
+          if (template)
+            return template.css_selector();
+        }
         return function(method,name,pragma_opts,obj) {
           if (method === '#' && /^>>/.test(name) ) {
             var template_name = name.substring(2);
-            var html_match = obj.uncompiled.match(this.embedded_partial_regex);
+            var html_match = /^(\s*<[^>]+?(id=[\'\"]([^\'\"]+)[\'\"]|class=[\'\"]([^\'\"]+)[\'\"])[^>]*>)([\s\S]+)(<\/\w+>\s*)$/mg.exec(obj.uncompiled);
             if (html_match) {
               ///split up the innerHTML content so it can be rendered separately
               obj.compiled = this.section_compile(html_match[1], obj.otag, obj.ctag);
-              obj.inner_index = obj.compiled.compiled.length;
+              obj.compiled.inner_index = obj.compiled.compiled.length;
               if (html_match[3]) {
-                obj.partial_id = html_match[3];
-              } else {
-                obj.partial_class = html_match[4].split(' ')[0]; //first class used
+                obj.compiled.partial_id = this.section_compile(
+                  html_match[3], obj.otag, obj.ctag
+                );
+                //if @id isn't variable, then we'll use that to find all this object, otherwise the first @class
+                if (obj.compiled.partial_id.compiled.length == 1 && typeof obj.compiled.partial_id.compiled[0] == 'string') {
+                  obj.compiled.partial_unique_id = html_match[3];
+                } else {
+                  var class_match = /class=[\'\"]([^\'\"]+)[\'\"]/mg.exec(html_match[1]);
+                  if (class_match) {
+                    var classes = class_match[1].split(' ');
+                    if (!(new RegExp(obj.otag).test(classes[0]))) {
+                      obj.compiled.partial_unique_class = classes[0];
+                    }
+                  }
+                }
+              } else {//first class used
+                var classes = html_match[4].split(' ');
+                obj.compiled.partial_class = this.section_compile(
+                  classes[0], obj.otag, obj.ctag
+                );
+                //use second class to find all objects of this type
+                if (classes.length > 1 && !(new RegExp(obj.otag).test(classes[1]))) {
+                  obj.compiled.partial_unique_class = classes[1];
+                }
               }
+              //add the rest of the template after the opening tag
               obj.compiled.compiled.push({
                 'content':this.pieces.just_render,
                 'uncompiled':html_match[5],
