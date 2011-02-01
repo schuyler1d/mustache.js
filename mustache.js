@@ -195,7 +195,8 @@
         return function(method,name,pragma_opts,obj) {
           if (method === '#' && /^>>/.test(name) ) {
             var template_name = name.substring(2);
-            var html_match = /^(\s*<[^>]+?(id=[\'\"]([^\'\"]+)[\'\"]|class=[\'\"]([^\'\"]+)[\'\"])[^>]*>)([\s\S]+)(<\/\w+>\s*)$/mg.exec(obj.uncompiled);
+            var oneelement_regex = new RegExp('^(\\s*<[^>]+?(id=[\\\'\\"]([^\\\'\\"]+)[\\\'\\"]|class=[\\\'\\"]([^\\\'\\"]+)[\\\'\\"])[^>]*>)([\\s\\S]+)(<\\/\\w+>\\s*)$','mg');
+            var html_match = oneelement_regex.exec(obj.uncompiled);
             if (html_match) {
               ///split up the innerHTML content so it can be rendered separately
               obj.compiled = this.section_compile(html_match[1], obj.otag, obj.ctag);
